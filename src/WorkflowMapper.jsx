@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 
-// ─── Design tokens ───────────────────────────────────────────────────────────
+// --- Design tokens ---
 const T = {
   bg:        "#f6f7fb",
   canvas:    "#eef1f7",
@@ -17,7 +17,9 @@ const T = {
   danger:    "#e5484d",
 };
 
-// ─── Utility: get anchor point on a node ────────────────────────────────────
+const MIN_W = 120;
+const MIN_H = 56;
+
 function getAnchor(node, side) {
   const w = node.width || 180;
   const h = node.height || 70;
@@ -57,7 +59,35 @@ function curvePath(x1, y1, x2, y2, fromSide, toSide) {
   return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
 }
 
-// ─── Node colour by type ─────────────────────────────────────────────────────
+// --- Text wrapping: reflow label to fit node width ---
+function wrapLabel(text, width, fontPx = 13.5, pad = 36) {
+  const charW = fontPx * 0.58;
+  const maxChars = Math.max(1, Math.floor((width - pad) / charW));
+  const words = String(text).split(/\\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const cand = line ? line + " " + word : word;
+    if (cand.length <= maxChars) {
+      line = cand;
+    } else {
+      if (line) lines.push(line);
+      if (word.length > maxChars) {
+        let rest = word;
+        while (rest.length > maxChars) {
+          lines.push(rest.slice(0, maxChars));
+          rest = rest.slice(maxChars);
+        }
+        line = rest;
+      } else {
+        line = word;
+      }
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
 const NODE_STYLES = {
   process:  { header: "#4f46e5", border: "#c7cbf5", tint: "#f3f4fe", glyph: "#4f46e5" },
   decision: { header: "#d97706", border: "#f4d9a8", tint: "#fffaf0", glyph: "#b45309" },
@@ -65,7 +95,6 @@ const NODE_STYLES = {
   end:      { header: "#e5484d", border: "#f6c8ca", tint: "#fef3f3", glyph: "#e5484d" },
 };
 
-// ─── Main component ──────────────────────────────────────────────────────────
 export default function WorkflowMapper() {
   const [view, setView] = useState("current");
   const [nodes, setNodes] = useState({
@@ -88,6 +117,7 @@ export default function WorkflowMapper() {
 
   const [selected, setSelected]   = useState(null);
   const [dragging, setDragging]   = useState(null);
+  const [resizing, setResizing]   = useState(null);
   const [connecting, setConnecting] = useState(null);
   const svgRef       = useRef(null);
   const nodeCounter  = useRef(10);
@@ -101,7 +131,7 @@ export default function WorkflowMapper() {
   const setViewEdges = (fn) =>
     setEdges(prev => ({ ...prev, [view]: typeof fn === "function" ? fn(prev[view]) : fn }));
 
-  // ── Pointer-capture drag ───────────────────────────────────────────────────
+  // -- Pointer-capture drag --
   const onNodePointerDown = (e, nodeId) => {
     if (e.target.dataset.handle) return;
     e.stopPropagation();
@@ -111,6 +141,17 @@ export default function WorkflowMapper() {
     setDragging({ nodeId, offsetX: e.clientX - rect.left - node.x, offsetY: e.clientY - rect.top - node.y });
   };
   const onNodePointerMove = (e, nodeId) => {
+    if (resizing && resizing.nodeId === nodeId) {
+      e.preventDefault();
+      const rect = svgRef.current.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      setViewNodes(prev => prev.map(n =>
+        n.id === nodeId
+          ? { ...n, width: Math.max(MIN_W, mx - n.x), height: Math.max(MIN_H, my - n.y) }
+          : n
+      ));
+      return;
+    }
     if (!dragging || dragging.nodeId !== nodeId) return;
     e.preventDefault();
     const rect = svgRef.current.getBoundingClientRect();
@@ -121,12 +162,24 @@ export default function WorkflowMapper() {
     ));
   };
   const onNodePointerUp = (e, nodeId) => {
+    if (resizing && resizing.nodeId === nodeId) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      setResizing(null);
+      return;
+    }
     if (!dragging || dragging.nodeId !== nodeId) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
     setDragging(null);
   };
 
-  // ── Connection handles ─────────────────────────────────────────────────────
+  // -- Resize handle --
+  const onResizePointerDown = (e, nodeId) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setResizing({ nodeId });
+  };
+
+  // -- Connection handles --
   const onHandlePointerDown = (e, nodeId, side) => {
     e.stopPropagation();
     const rect = svgRef.current.getBoundingClientRect();
@@ -161,7 +214,7 @@ export default function WorkflowMapper() {
     setConnecting(null);
   };
 
-  // ── Add / Delete ───────────────────────────────────────────────────────────
+  // -- Add / Delete --
   const addNode = (type) => {
     nodeCounter.current += 1;
     setViewNodes(prev => [...prev, {
@@ -188,7 +241,7 @@ export default function WorkflowMapper() {
     setSelected(null);
   };
 
-  // ── Export / Import ──────────────────────────────────────────────────────────
+  // -- Export / Import --
   const exportSVG = () => {
     const svg = svgRef.current;
     const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" });
@@ -213,7 +266,7 @@ export default function WorkflowMapper() {
     reader.readAsText(file);
   };
 
-  // ── Selected helpers ───────────────────────────────────────────────────────
+  // -- Selected helpers --
   const selNode = selected?.type === "node" ? curNodes.find(n => n.id === selected.id) : null;
   const selEdge = selected?.type === "edge" ? curEdges.find(e => e.id === selected.id) : null;
   const updateNode = (field, val) =>
@@ -235,7 +288,6 @@ export default function WorkflowMapper() {
 
   const SIDES = ["top", "right", "bottom", "left"];
 
-  // ── Reusable styles ──────────────────────────────────────────────────────────
   const inputStyle = {
     width: "100%", padding: "7px 10px", border: `1px solid ${T.borderMed}`,
     borderRadius: 8, marginBottom: 12, boxSizing: "border-box", fontSize: 13,
@@ -246,19 +298,16 @@ export default function WorkflowMapper() {
     display: "block", marginBottom: 5, color: T.textSoft, fontSize: 11,
     fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em",
   };
-
   const tbBtn = (bg) => ({
     padding: "6px 13px", borderRadius: 8, border: "none", cursor: "pointer",
     background: bg, color: "#fff", fontSize: 12.5, fontWeight: 500,
     display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
   });
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh",
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: T.bg, color: T.text }}>
 
-      {/* Injected hover/focus polish */}
       <style>{`
         .wm-btn { transition: filter .15s, transform .05s, background .15s; }
         .wm-btn:hover { filter: brightness(1.08); }
@@ -269,9 +318,11 @@ export default function WorkflowMapper() {
         .wm-handle { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-handle { opacity: 1; }
         .wm-handle.always { opacity: 1; }
+        .wm-resize { opacity: 0; transition: opacity .15s; }
+        .wm-node-group:hover .wm-resize { opacity: 1; }
+        .wm-resize.always { opacity: 1; }
       `}</style>
 
-      {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px",
         background: T.toolbar, color: "#fff", flexShrink: 0, boxShadow: "0 1px 0 rgba(255,255,255,.04)" }}>
 
@@ -283,7 +334,6 @@ export default function WorkflowMapper() {
           <strong style={{ fontSize: 14.5, letterSpacing: ".01em" }}>Workflow Mapper</strong>
         </div>
 
-        {/* View toggle */}
         <div style={{ display: "flex", background: "#0e121b", borderRadius: 9, padding: 3, gap: 3 }}>
           {["current", "proposed"].map(v => (
             <button key={v} className="wm-tab" onClick={() => { setView(v); setSelected(null); }}
@@ -297,7 +347,6 @@ export default function WorkflowMapper() {
 
         <span style={{ flex: 1 }} />
 
-        {/* Add node group */}
         <div style={{ display: "flex", gap: 6, paddingRight: 10, marginRight: 4,
           borderRight: "1px solid rgba(255,255,255,.10)" }}>
           {["process", "decision", "start", "end"].map(t => (
@@ -311,7 +360,6 @@ export default function WorkflowMapper() {
           ))}
         </div>
 
-        {/* File actions */}
         <button className="wm-btn" onClick={exportSVG} style={tbBtn(T.toolbarBtn)}>Save SVG</button>
         <button className="wm-btn" onClick={exportJSON} style={tbBtn(T.toolbarBtn)}>Export JSON</button>
         <label className="wm-btn" style={{ ...tbBtn(T.toolbarBtn), cursor: "pointer" }}>
@@ -324,10 +372,8 @@ export default function WorkflowMapper() {
         )}
       </div>
 
-      {/* Canvas + Panel */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-        {/* SVG canvas */}
         <svg ref={svgRef} style={{ flex: 1, background: T.canvas }}
           onPointerMove={onSvgPointerMove}
           onPointerUp={onSvgPointerUp}
@@ -345,10 +391,8 @@ export default function WorkflowMapper() {
             </pattern>
           </defs>
 
-          {/* Dotted grid */}
           <rect x="0" y="0" width="100%" height="100%" fill="url(#grid)" />
 
-          {/* Edges */}
           {curEdges.map(edge => {
             const fn = curNodes.find(n => n.id === edge.from);
             const tn = curNodes.find(n => n.id === edge.to);
@@ -379,7 +423,6 @@ export default function WorkflowMapper() {
             );
           })}
 
-          {/* In-progress connection */}
           {connecting && (() => {
             const fn = curNodes.find(n => n.id === connecting.fromId);
             if (!fn) return null;
@@ -389,11 +432,13 @@ export default function WorkflowMapper() {
               style={{ pointerEvents: "none" }} />;
           })()}
 
-          {/* Nodes */}
           {curNodes.map(node => {
             const w = node.width || 180, h = node.height || 70;
             const s = NODE_STYLES[node.type] || NODE_STYLES.process;
             const isSel = selected?.type === "node" && selected.id === node.id;
+            const lines = wrapLabel(node.label, w, 13.5, node.type === "decision" ? 40 : 46);
+            const lineH = 17;
+            const labelBlockH = lines.length * lineH;
             return (
               <g key={node.id} className="wm-node-group"
                 onPointerDown={e => onNodePointerDown(e, node.id)}
@@ -410,24 +455,33 @@ export default function WorkflowMapper() {
                   <>
                     <rect className="wm-node-shadow" x={node.x} y={node.y} width={w} height={h} rx={10}
                       fill={T.surface} stroke={isSel ? T.primary : s.border} strokeWidth={isSel ? 2.5 : 1.5} />
-                    {/* Coloured accent bar on the left */}
                     <rect x={node.x} y={node.y} width={5} height={h} rx={2.5}
                       fill={s.header} style={{ pointerEvents: "none" }} />
                   </>
                 )}
 
-                {/* Label */}
-                <text x={node.type === "decision" ? node.x + w / 2 : node.x + 18}
-                  y={node.type === "decision" ? node.y + h / 2 + 5 : node.y + 30}
-                  textAnchor={node.type === "decision" ? "middle" : "start"}
-                  fontSize={13.5} fontWeight={700}
-                  fill={node.type === "decision" ? s.glyph : T.text}
-                  style={{ pointerEvents: "none", userSelect: "none" }}>
-                  {node.label}
-                </text>
+                {/* Wrapped label */}
+                {node.type === "decision" ? (
+                  <text x={node.x + w / 2}
+                    y={node.y + h / 2 - labelBlockH / 2 + lineH - 4}
+                    textAnchor="middle" fontSize={13.5} fontWeight={700} fill={s.glyph}
+                    style={{ pointerEvents: "none", userSelect: "none" }}>
+                    {lines.map((ln, i) => (
+                      <tspan key={i} x={node.x + w / 2} dy={i === 0 ? 0 : lineH}>{ln}</tspan>
+                    ))}
+                  </text>
+                ) : (
+                  <text x={node.x + 18} y={node.y + 28}
+                    textAnchor="start" fontSize={13.5} fontWeight={700} fill={T.text}
+                    style={{ pointerEvents: "none", userSelect: "none" }}>
+                    {lines.map((ln, i) => (
+                      <tspan key={i} x={node.x + 18} dy={i === 0 ? 0 : lineH}>{ln}</tspan>
+                    ))}
+                  </text>
+                )}
 
                 {node.type !== "decision" && (
-                  <text x={node.x + 18} y={node.y + 49}
+                  <text x={node.x + 18} y={node.y + 28 + labelBlockH + 4}
                     textAnchor="start" fontSize={10.5} fontWeight={600}
                     fill={s.glyph} letterSpacing=".05em"
                     style={{ pointerEvents: "none", userSelect: "none", textTransform: "uppercase" }}>
@@ -435,7 +489,7 @@ export default function WorkflowMapper() {
                   </text>
                 )}
 
-                {/* Connection handles (fade in on hover, always shown when selected) */}
+                {/* Connection handles */}
                 {SIDES.map(side => {
                   const a = getAnchor(node, side);
                   return (
@@ -447,18 +501,32 @@ export default function WorkflowMapper() {
                       onPointerDown={e => { e.stopPropagation(); onHandlePointerDown(e, node.id, side); }} />
                   );
                 })}
+
+                {/* Resize grip (bottom-right corner) */}
+                <rect className={`wm-resize${isSel ? " always" : ""}`}
+                  x={node.x + w - 14} y={node.y + h - 14} width={14} height={14} rx={3}
+                  fill="#fff" stroke={T.primary} strokeWidth={1.5}
+                  data-handle="true"
+                  style={{ cursor: "nwse-resize" }}
+                  onPointerDown={e => onResizePointerDown(e, node.id)}
+                  onPointerMove={e => onNodePointerMove(e, node.id)}
+                  onPointerUp={e => onNodePointerUp(e, node.id)} />
+                <path className={`wm-resize${isSel ? " always" : ""}`}
+                  d={`M ${node.x + w - 10} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 10}
+                     M ${node.x + w - 6} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 6}`}
+                  stroke={T.primary} strokeWidth={1.2} fill="none"
+                  style={{ pointerEvents: "none" }} />
               </g>
             );
           })}
         </svg>
 
-        {/* Side panel */}
         <div style={{ width: 288, background: T.surface, borderLeft: `1px solid ${T.border}`,
           overflowY: "auto", padding: "20px 18px", fontSize: 13, color: T.text, flexShrink: 0 }}>
 
           {!selected && (
             <div style={{ color: T.textFaint, marginTop: 60, textAlign: "center", lineHeight: 1.7, fontSize: 13 }}>
-              <div style={{ fontSize: 30, marginBottom: 10, opacity: .5 }}>◇</div>
+              <div style={{ fontSize: 30, marginBottom: 10, opacity: .5 }}>&#9671;</div>
               Select a node or connection<br />to edit its properties
             </div>
           )}
@@ -484,6 +552,22 @@ export default function WorkflowMapper() {
                 <option value="end">End</option>
               </select>
 
+              <label style={labelStyle}>Size</label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <input className="wm-input" type="number" min={MIN_W} value={Math.round(selNode.width || 180)}
+                    onChange={e => updateNode("width", Math.max(MIN_W, Number(e.target.value) || MIN_W))}
+                    style={{ ...inputStyle, marginBottom: 0 }} />
+                  <span style={{ fontSize: 10.5, color: T.textFaint }}>width</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input className="wm-input" type="number" min={MIN_H} value={Math.round(selNode.height || 70)}
+                    onChange={e => updateNode("height", Math.max(MIN_H, Number(e.target.value) || MIN_H))}
+                    style={{ ...inputStyle, marginBottom: 0 }} />
+                  <span style={{ fontSize: 10.5, color: T.textFaint }}>height</span>
+                </div>
+              </div>
+
               {selNode.type === "decision" && (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ fontWeight: 700, marginBottom: 10, color: T.text, fontSize: 13 }}>Branches</div>
@@ -497,7 +581,7 @@ export default function WorkflowMapper() {
                             borderRadius: 6, fontSize: 12, marginBottom: 0, boxSizing: "border-box" }} />
                         <button className="wm-btn" onClick={() => removeBranch(b.id)}
                           style={{ padding: "2px 9px", background: "#fdecec", border: "none",
-                            borderRadius: 6, cursor: "pointer", color: T.danger, fontSize: 13, fontWeight: 600 }}>✕</button>
+                            borderRadius: 6, cursor: "pointer", color: T.danger, fontSize: 13, fontWeight: 600 }}>&#10005;</button>
                       </div>
                       <input className="wm-input" placeholder="Condition / logic (e.g. amount > 1000)" value={b.logic}
                         onChange={e => updateBranch(b.id, "logic", e.target.value)}
