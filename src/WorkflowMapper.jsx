@@ -217,8 +217,9 @@ export default function WorkflowMapper() {
   // -- Add / Delete --
   const addNode = (type) => {
     nodeCounter.current += 1;
+    const newId = `n${nodeCounter.current}-${Date.now().toString(36)}`;
     setViewNodes(prev => [...prev, {
-      id: `${nodeCounter.current}`,
+      id: newId,
       x: 120 + Math.random() * 300,
       y: 120 + Math.random() * 200,
       label: type.charAt(0).toUpperCase() + type.slice(1),
@@ -260,10 +261,25 @@ export default function WorkflowMapper() {
     reader.onload = (ev) => {
       try {
         const { nodes: n, edges: ed } = JSON.parse(ev.target.result);
+
+        // Bump counters past any imported IDs so new items never collide
+        const maxNode = n.reduce((m, node) => {
+          const num = parseInt(String(node.id).replace(/\D/g, ""), 10);
+          return Number.isFinite(num) ? Math.max(m, num) : m;
+        }, nodeCounter.current);
+        const maxEdge = ed.reduce((m, edge) => {
+          const num = parseInt(String(edge.id).replace(/\D/g, ""), 10);
+          return Number.isFinite(num) ? Math.max(m, num) : m;
+        }, edgeCounter.current);
+        nodeCounter.current = maxNode;
+        edgeCounter.current = maxEdge;
+
         setViewNodes(n); setViewEdges(ed);
+        setSelected(null);
       } catch { alert("Invalid JSON"); }
     };
     reader.readAsText(file);
+    e.target.value = "";
   };
 
   // -- Selected helpers --
