@@ -105,7 +105,7 @@ export default function WorkflowMapper() {
     current: [
       { id: "1", x: 80,  y: 120, label: "Start",    type: "start",    branches: [], width: 180, height: 70 },
       { id: "2", x: 340, y: 120, label: "Process A", type: "process",  branches: [], width: 180, height: 70 },
-      { id: "3", x: 600, y: 120, label: "Check",     type: "decision", branches: [{ id: "b1", label: "Yes", logic: "" }, { id: "b2", label: "No", logic: "" }], width: 180, height: 70 },
+      { id: "3", x: 600, y: 120, label: "Check",     type: "decision", branches: [{ id: "b1", label: "Yes" }, { id: "b2", label: "No" }], width: 180, height: 70 },
       { id: "4", x: 600, y: 280, label: "End",       type: "end",      branches: [], width: 180, height: 70 },
     ],
     proposed: [],
@@ -229,7 +229,7 @@ export default function WorkflowMapper() {
       label: type.charAt(0).toUpperCase() + type.slice(1),
       type,
       branches: type === "decision"
-        ? [{ id: "b1", label: "Yes", logic: "" }, { id: "b2", label: "No", logic: "" }]
+        ? [{ id: "b1", label: "Yes" }, { id: "b2", label: "No" }]
         : [],
       width: 180,
       height: 70,
@@ -299,7 +299,7 @@ export default function WorkflowMapper() {
       : n));
   const addBranch = () =>
     setViewNodes(prev => prev.map(n => n.id === selNode.id
-      ? { ...n, branches: [...n.branches, { id: `b${Date.now()}`, label: "Branch", logic: "" }] }
+      ? { ...n, branches: [...n.branches, { id: `b${Date.now()}`, label: "Branch" }] }
       : n));
   const removeBranch = (bid) =>
     setViewNodes(prev => prev.map(n => n.id === selNode.id
@@ -487,11 +487,11 @@ export default function WorkflowMapper() {
                 {node.type === "decision" ? (
                   <polygon className="wm-node-shadow"
                     points={`${node.x + w/2},${node.y} ${node.x + w},${node.y + h/2} ${node.x + w/2},${node.y + h} ${node.x},${node.y + h/2}`}
-                    fill={s.tint} stroke={isSel ? T.primary : s.border} strokeWidth={isSel ? 2.5 : 1.5} />
+                    fill={s.tint} stroke={s.border} strokeWidth={1.5} />
                 ) : (
                   <>
                     <rect className="wm-node-shadow" x={node.x} y={node.y} width={w} height={h} rx={10}
-                      fill={T.surface} stroke={isSel ? T.primary : s.border} strokeWidth={isSel ? 2.5 : 1.5} />
+                      fill={T.surface} stroke={s.border} strokeWidth={1.5} />
                     <rect x={node.x} y={node.y} width={5} height={h} rx={2.5}
                       fill={s.header} style={{ pointerEvents: "none" }} />
                   </>
@@ -589,29 +589,13 @@ export default function WorkflowMapper() {
                 <option value="end">End</option>
               </select>
 
-              <label style={labelStyle}>Size</label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <input className="wm-input" type="number" min={MIN_W} value={Math.round(selNode.width || 180)}
-                    onChange={e => updateNode("width", Math.max(MIN_W, Number(e.target.value) || MIN_W))}
-                    style={{ ...inputStyle, marginBottom: 0 }} />
-                  <span style={{ fontSize: 10.5, color: T.textFaint }}>width</span>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <input className="wm-input" type="number" min={MIN_H} value={Math.round(selNode.height || 70)}
-                    onChange={e => updateNode("height", Math.max(MIN_H, Number(e.target.value) || MIN_H))}
-                    style={{ ...inputStyle, marginBottom: 0 }} />
-                  <span style={{ fontSize: 10.5, color: T.textFaint }}>height</span>
-                </div>
-              </div>
-
               {selNode.type === "decision" && (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ fontWeight: 700, marginBottom: 10, color: T.text, fontSize: 13 }}>Branches</div>
                   {selNode.branches.map(b => (
                     <div key={b.id} style={{ background: T.bg, border: `1px solid ${T.border}`,
-                      borderRadius: 9, padding: "10px 10px 8px", marginBottom: 9 }}>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                      borderRadius: 9, padding: "8px", marginBottom: 9 }}>
+                      <div style={{ display: "flex", gap: 6 }}>
                         <input className="wm-input" placeholder="Label (e.g. Yes)" value={b.label}
                           onChange={e => updateBranch(b.id, "label", e.target.value)}
                           style={{ flex: 1, padding: "5px 8px", border: `1px solid ${T.borderMed}`,
@@ -620,10 +604,6 @@ export default function WorkflowMapper() {
                           style={{ padding: "2px 9px", background: "#fdecec", border: "none",
                             borderRadius: 6, cursor: "pointer", color: T.danger, fontSize: 13, fontWeight: 600 }}>&#10005;</button>
                       </div>
-                      <input className="wm-input" placeholder="Condition / logic (e.g. amount > 1000)" value={b.logic}
-                        onChange={e => updateBranch(b.id, "logic", e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: `1px solid ${T.borderMed}`,
-                          borderRadius: 6, fontSize: 11.5, boxSizing: "border-box", color: T.textSoft, marginBottom: 0 }} />
                     </div>
                   ))}
                   <button className="wm-btn" onClick={addBranch}
