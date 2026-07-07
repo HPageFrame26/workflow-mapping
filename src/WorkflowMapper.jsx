@@ -15,6 +15,7 @@ const T = {
   primarySoft:"#f5eed6",
   gold:      "#b8902e",
   goldDeep:  "#8f6e1f",
+  handle:    "#6b7688",
   toolbar:   "#161b26",
   toolbarTop:"#1c2230",
   toolbarBtn:"#242c3b",
@@ -337,8 +338,10 @@ export default function WorkflowMapper() {
         .wm-node-shadow { filter: drop-shadow(0 4px 10px rgba(20,27,38,.10)); }
         .wm-handle { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-handle { opacity: 1; }
+        .wm-handle.always { opacity: 1; }
         .wm-resize { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-resize { opacity: 1; }
+        .wm-resize.always { opacity: 1; }
         .wm-brand {
           font-family: Georgia, 'Times New Roman', serif;
           font-weight: 700;
@@ -463,7 +466,7 @@ export default function WorkflowMapper() {
             if (!fn) return null;
             const a = getAnchor(fn, connecting.fromSide);
             return <line x1={a.x} y1={a.y} x2={connecting.curX} y2={connecting.curY}
-              stroke={T.primary} strokeWidth={2} strokeDasharray="5,4" strokeLinecap="round"
+              stroke={T.handle} strokeWidth={2} strokeDasharray="5,4" strokeLinecap="round"
               style={{ pointerEvents: "none" }} />;
           })()}
 
@@ -529,7 +532,7 @@ export default function WorkflowMapper() {
                   return (
                     <circle key={side} className="wm-handle"
                       cx={a.x} cy={a.y} r={5.5}
-                      fill="#fff" stroke={T.primary} strokeWidth={2}
+                      fill="#fff" stroke={T.handle} strokeWidth={2}
                       data-handle="true"
                       style={{ cursor: "crosshair" }}
                       onPointerDown={e => { e.stopPropagation(); onHandlePointerDown(e, node.id, side); }} />
@@ -539,7 +542,7 @@ export default function WorkflowMapper() {
                 {/* Resize grip (bottom-right corner) */}
                 <rect className="wm-resize"
                   x={node.x + w - 14} y={node.y + h - 14} width={14} height={14} rx={3}
-                  fill="#fff" stroke={T.primary} strokeWidth={1.5}
+                  fill="#fff" stroke={T.handle} strokeWidth={1.5}
                   data-handle="true"
                   style={{ cursor: "nwse-resize" }}
                   onPointerDown={e => onResizePointerDown(e, node.id)}
@@ -548,7 +551,7 @@ export default function WorkflowMapper() {
                 <path className="wm-resize"
                   d={`M ${node.x + w - 10} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 10}
                      M ${node.x + w - 6} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 6}`}
-                  stroke={T.primary} strokeWidth={1.2} fill="none"
+                  stroke={T.handle} strokeWidth={1.2} fill="none"
                   style={{ pointerEvents: "none" }} />
               </g>
             );
