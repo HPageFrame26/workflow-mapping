@@ -337,10 +337,8 @@ export default function WorkflowMapper() {
         .wm-node-shadow { filter: drop-shadow(0 4px 10px rgba(20,27,38,.10)); }
         .wm-handle { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-handle { opacity: 1; }
-        .wm-handle.always { opacity: 1; }
         .wm-resize { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-resize { opacity: 1; }
-        .wm-resize.always { opacity: 1; }
         .wm-brand {
           font-family: Georgia, 'Times New Roman', serif;
           font-weight: 700;
@@ -472,7 +470,6 @@ export default function WorkflowMapper() {
           {curNodes.map(node => {
             const w = node.width || 180, h = node.height || 70;
             const s = NODE_STYLES[node.type] || NODE_STYLES.process;
-            const isSel = selected?.type === "node" && selected.id === node.id;
             const lines = wrapLabel(node.label, w, 13.5, node.type === "decision" ? 40 : 46);
             const lineH = 17;
             const labelBlockH = lines.length * lineH;
@@ -530,7 +527,7 @@ export default function WorkflowMapper() {
                 {SIDES.map(side => {
                   const a = getAnchor(node, side);
                   return (
-                    <circle key={side} className={`wm-handle${isSel ? " always" : ""}`}
+                    <circle key={side} className="wm-handle"
                       cx={a.x} cy={a.y} r={5.5}
                       fill="#fff" stroke={T.primary} strokeWidth={2}
                       data-handle="true"
@@ -540,7 +537,7 @@ export default function WorkflowMapper() {
                 })}
 
                 {/* Resize grip (bottom-right corner) */}
-                <rect className={`wm-resize${isSel ? " always" : ""}`}
+                <rect className="wm-resize"
                   x={node.x + w - 14} y={node.y + h - 14} width={14} height={14} rx={3}
                   fill="#fff" stroke={T.primary} strokeWidth={1.5}
                   data-handle="true"
@@ -548,7 +545,7 @@ export default function WorkflowMapper() {
                   onPointerDown={e => onResizePointerDown(e, node.id)}
                   onPointerMove={e => onNodePointerMove(e, node.id)}
                   onPointerUp={e => onNodePointerUp(e, node.id)} />
-                <path className={`wm-resize${isSel ? " always" : ""}`}
+                <path className="wm-resize"
                   d={`M ${node.x + w - 10} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 10}
                      M ${node.x + w - 6} ${node.y + h - 3} L ${node.x + w - 3} ${node.y + h - 6}`}
                   stroke={T.primary} strokeWidth={1.2} fill="none"
