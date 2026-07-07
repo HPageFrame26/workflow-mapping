@@ -10,9 +10,13 @@ const T = {
   text:      "#1f2733",
   textSoft:  "#647085",
   textFaint: "#9aa5b6",
-  primary:   "#4f46e5",
-  primarySoft:"#eef0fe",
+  // FRAME gold is the interactive accent (selection, handles, focus, connectors)
+  primary:   "#b8902e",
+  primarySoft:"#f5eed6",
+  gold:      "#b8902e",
+  goldDeep:  "#8f6e1f",
   toolbar:   "#161b26",
+  toolbarTop:"#1c2230",
   toolbarBtn:"#242c3b",
   danger:    "#e5484d",
 };
@@ -337,25 +341,42 @@ export default function WorkflowMapper() {
         .wm-resize { opacity: 0; transition: opacity .15s; }
         .wm-node-group:hover .wm-resize { opacity: 1; }
         .wm-resize.always { opacity: 1; }
+        .wm-brand {
+          font-family: Georgia, 'Times New Roman', serif;
+          font-weight: 700;
+          font-size: 21px;
+          letter-spacing: .22em;
+          text-transform: uppercase;
+          /* gold foil */
+          background: linear-gradient(180deg,#f4e4ae 0%,#e5c56d 46%,#c69a3f 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: #d9b458; /* fallback */
+          padding-left: .22em; /* offset the trailing letter-spacing so it reads centered */
+          user-select: none;
+        }
       `}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px",
-        background: T.toolbar, color: "#fff", flexShrink: 0, boxShadow: "0 1px 0 rgba(255,255,255,.04)" }}>
+        background: `linear-gradient(180deg,${T.toolbarTop},${T.toolbar})`, color: "#fff",
+        flexShrink: 0, borderTop: `2px solid ${T.gold}`,
+        boxShadow: "0 2px 8px rgba(10,13,20,.35)" }}>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 9, marginRight: 4 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7,
-            background: "linear-gradient(135deg,#6366f1,#4f46e5)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 15, fontWeight: 800, color: "#fff" }}>W</div>
-          <strong style={{ fontSize: 14.5, letterSpacing: ".01em" }}>Workflow Mapper</strong>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 11, marginRight: 6 }}>
+          <span className="wm-brand">Frame</span>
+          <span style={{ width: 1, height: 18, background: "rgba(255,255,255,.16)",
+            alignSelf: "center" }} />
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: "#aeb7c6",
+            letterSpacing: ".02em" }}>Workflow Mapper</span>
         </div>
 
         <div style={{ display: "flex", background: "#0e121b", borderRadius: 9, padding: 3, gap: 3 }}>
           {["current", "proposed"].map(v => (
             <button key={v} className="wm-tab" onClick={() => { setView(v); setSelected(null); }}
               style={{ padding: "5px 15px", borderRadius: 7, border: "none", cursor: "pointer",
-                background: view === v ? T.primary : "transparent",
-                color: view === v ? "#fff" : "#9aa5b6", fontWeight: view === v ? 600 : 500, fontSize: 12.5 }}>
+                background: view === v ? T.gold : "transparent",
+                color: view === v ? "#1a1f2b" : "#9aa5b6", fontWeight: view === v ? 700 : 500, fontSize: 12.5 }}>
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>
           ))}
