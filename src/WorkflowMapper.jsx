@@ -68,7 +68,7 @@ function curvePath(x1, y1, x2, y2, fromSide, toSide) {
 function wrapLabel(text, width, fontPx = 13.5, pad = 36) {
   const charW = fontPx * 0.58;
   const maxChars = Math.max(1, Math.floor((width - pad) / charW));
-  const words = String(text).split(/\\s+/);
+  const words = String(text).split(/\s+/);
   const lines = [];
   let line = "";
   for (const word of words) {
@@ -77,22 +77,12 @@ function wrapLabel(text, width, fontPx = 13.5, pad = 36) {
       line = cand;
     } else {
       if (line) lines.push(line);
-      if (word.length > maxChars) {
-        let rest = word;
-        while (rest.length > maxChars) {
-          lines.push(rest.slice(0, maxChars));
-          rest = rest.slice(maxChars);
-        }
-        line = rest;
-      } else {
-        line = word;
-      }
+      line = word; // always start a new line with the full word, never split it
     }
   }
   if (line) lines.push(line);
   return lines.length ? lines : [""];
 }
-
 const NODE_STYLES = {
   process:  { header: "#4f46e5", border: "#c7cbf5", tint: "#f3f4fe", glyph: "#4f46e5" },
   decision: { header: "#d97706", border: "#f4d9a8", tint: "#fffaf0", glyph: "#b45309" },
